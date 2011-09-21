@@ -3,3 +3,4 @@ db/
 log/
 node-srv/config.js
 start_dev.sh
+node-srv/.monitor

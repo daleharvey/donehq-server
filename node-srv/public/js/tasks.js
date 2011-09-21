@@ -79,21 +79,7 @@ var Tasks = (function () {
       url: '/register',
       data: JSON.stringify(credentials)
     }).then(function(data) {
-
-      var replicate = {
-        source: 'master',
-        target: details.username
-      };
-
-      $.ajax({
-        type: 'POST',
-        url: '/couch/_replicate',
-        contentType: 'application/json',
-        data: JSON.stringify(replicate)
-      }).then(function(data) {
-        document.location = '/user/' + details.username + '/';
-      });
-
+      document.location = '/user/' + details.username + '/';
     }).fail(function(data) {
       alert('Registration Failed');
     });

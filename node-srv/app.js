@@ -4,24 +4,29 @@ var request = require('request');
 var express = require('express');
 var hashlib = require("hashlib");
 var httpProxy = require('http-proxy');
+var _ = require('underscore');
 
-var couchUrl = 'http://' + config.couch.admin.name + ':' + config.couch.admin.pass
-  + '@' + config.couch.host + ':' + config.couch.port;
+var couchAuthUrl = 'http://' + config.couch.admin.name + ':' +
+  config.couch.admin.pass + '@' + config.couch.host + ':' + config.couch.port;
 
-var nano = require('nano')(couchUrl);
+var couchUrl = 'http://' + config.couch.host + ':' + config.couch.port + '/';
 
+var nano = require('nano')(couchAuthUrl);
 var app = require('express').createServer();
 
 
+// Homepage!
 app.get('/', function(_, res) {
   res.sendfile(__dirname + '/public/index.html');
 });
 
 
+// Serves the main application index.html, this path needs a check
+// for auth errrors to give the user a login screen if they arent
+// logged in
 app.get('/user/:id/', function(req, res){
 
-  var url = 'http://' + config.couch.host + ':' + config.couch.port +
-    '/' + req.params.id + '/_design/couchtasks/index.html';
+  var url = couchUrl + req.params.id + '/_design/couchtasks/index.html';
 
   request.get({
     headers: {'Cookie': req.headers['cookie'] || ''},
@@ -30,117 +35,88 @@ app.get('/user/:id/', function(req, res){
     if (resp.statusCode === 401) {
       res.sendfile(__dirname + '/public/index.html');
     } else {
-      res.writeHead(200, {
-        'Content-Type': 'text/html'
-      });
+      res.writeHead(200, {'Content-Type': 'text/html'});
       res.end(body + '\n');
     }
   });
 });
 
 
+// CouchApp addresses everything relatively from root, so this ust proxies
+// the static file requests
 app.get('/user/:id/*', function(req, res) {
-  var url = 'http://' + config.couch.host + ':' + config.couch.port + '/' +
-    req.params.id + '/_design/couchtasks/' + req.params[0];
+  var url = couchUrl + req.params.id + '/_design/couchtasks/' + req.params[0];
   var x = request(url);
   req.pipe(x);
   x.pipe(res);
 });
 
 
+// Proxy all requests from /couch/* to the root of the couch host
 app.all('/couch/*', function(req, res) {
-  var url = 'http://' + config.couch.host + ':' + config.couch.port
-    + req.url.slice(6);
+  var url = couchUrl + req.url.slice(7);
   var x = request(url);
   req.pipe(x);
   x.pipe(res);
 });
 
 
+// Proxy login requests to couch
 app.post('/login', function(req, client) {
-
-  fetchBody(req, function(content) {
-    req.body = JSON.parse(content);
-    request({
-      method: 'POST',
-      uri: 'http://' + config.couch.host + ':' + config.couch.port + '/_session',
-      body: 'name=' + req.body.user + '&password=' + req.body.password,
-      headers: {'content-type': 'application/x-www-form-urlencoded' }
-    }, function(error, res, body) {
-
+  fetchJSONBody(req, function(post) {
+    loginRequest(post.user, post.password, function(err, res, body) {
       if (res.statusCode === 401) {
-        client.writeHead(401, {'Content-Type': 'text/plain'});
-        client.end('denied\n');
+        reply(client, 401, {error: 'invalid login'});
       } else {
-        client.writeHead(200, {
-          'Content-Type': 'text/plain',
-          'Set-Cookie': res.headers['set-cookie']
-        });
-        client.end('yay\n');
-
-        ensureAccount(req.body.user);
+        reply(client, 200, {ok: true}, {'Set-Cookie': res.headers['set-cookie']});
       }
     });
   });
-
 });
 
 
+// Register a user, check their name isnt taken and if not, create a new
+// user, create a database for them and setup security + initial CouchApp
+// This needs retry mechanisms built in, other failures are transient but if
+// this fails then it can be left inconsistent
 app.post('/register', function(req, client) {
 
-  fetchBody(req, function(content) {
-    req.body = JSON.parse(content);
-    console.log(req.body);
+  fetchJSONBody(req, function(post) {
+
+    console.log('REGISTRATION: ' + post.user);
+
     var users = nano.use('_users');
-    var name = req.body.user;
-    var userName = 'org.couchdb.user:' + req.body.user;
+    var name = post.user;
+    var userName = 'org.couchdb.user:' + post.user;
 
     users.get(userName, function(err, _, res) {
 
-      if (res['status-code'] === 404) {
+      if (res['status-code'] === 200) {
+        reply(client, 409, {error: 'unknown'});
 
-        nano.request({db: "_uuids"}, function(_, uuids){
+      } else if (res['status-code'] === 404) {
 
-          var salt = uuids.uuids[0];
-          var user_doc = {
-            _id: userName,
-            name: name,
-            type: 'user',
-            roles: [],
-            salt: salt,
-            password_sha: hashlib.sha1(req.body.password + salt)
-          };
+        createUserDoc(userName, name, post.password, function(user_doc) {
 
           users.insert(user_doc, function(err, body, hdrs) {
+
             if (err) {
-              client.writeHead(503, {'Content-Type': 'text/plain'});
-              client.end('wtf\n');
+              reply(503, {error: 'unknown'});
               return;
             }
 
-            request({
-              method: 'POST',
-              uri: 'http://' + config.couch.host + ':' + config.couch.port + '/_session',
-              body: 'name=' + req.body.user + '&password=' + req.body.password,
-              headers: {'content-type': 'application/x-www-form-urlencoded' }
-            }, function(error, res, body) {
-              ensureAccount(name, function() {
-                client.writeHead(201, {
-                  'Content-Type': 'text/plain',
+            loginRequest(post.user, post.password, function(error, res, body) {
+              createAccount(name, post.init_ui, function() {
+                reply(client, 201, {ok: true}, {
                   'Set-Cookie': res.headers['set-cookie']
                 });
-                client.end('Created!\n');
               });
             });
           });
         });
-      } else if (res['status-code'] === 200) {
-        client.writeHead(409, {'Content-Type': 'text/plain'});
-        client.end('conflict\n');
       }
     });
   });
-
 });
 
 
@@ -149,50 +125,93 @@ app.get('*', function(req, res) {
 });
 
 
-function fetchBody(req, callback) {
+function reply(client, status, content, hdrs) {
+  var headers = _.extend({'Content-Type': 'application/json'}, hdrs);
+  client.writeHead(status, headers);
+  client.end(JSON.stringify(content));
+}
+
+function createUserDoc(id, name, password, callback) {
+  nano.request({db: "_uuids"}, function(_, uuids){
+    var salt = uuids.uuids[0];
+    callback({
+      _id: id,
+      name: name,
+      type: 'user',
+      roles: [],
+      salt: salt,
+      password_sha: hashlib.sha1(password + salt)
+    });
+  });
+}
+
+
+function loginRequest(username, password, callback) {
+  request({
+    method: 'POST',
+    uri: couchUrl + '_session',
+    body: 'name=' + username + '&password=' + password,
+    headers: {'content-type': 'application/x-www-form-urlencoded' }
+  }, callback);
+}
+
+
+// Cant use parseBody middleware because it kills streams that are needed to
+function fetchJSONBody(req, callback) {
   var content = '';
   req.addListener('data', function(data) {
     content += data;
   });
   req.addListener('end', function() {
-    callback(content);
+    callback(JSON.parse(content));
   });
 }
 
 
-function ensureAccount(name, callback) {
+// Ensure the users database exists and has the correct
+// security credentials
+function createAccount(name, initUi, callback) {
 
   nano.db.create(name, function (error, body, headers) {
 
     if (headers['status-code'] === 201 ||
         headers['status-code'] === 412) {
 
-      var security = {
-        admins: { names: [name], roles: []},
-        readers: { names: [name], roles: []}
-      };
+      nano.db.replicate('master', name, function() {
 
-      nano.request({
-        method: 'PUT',
-        db: name,
-        path: '_security',
-        body: security
-      }, function(err, body, hdrs) {
-        if (hdrs['status-code'] !== 200) {
-          throw(err);
-        }
-        if (callback) {
-          callback();
-        }
+        var security = {
+          admins: { names: [name], roles: []},
+          readers: { names: [name], roles: []}
+        };
+
+        nano.request({
+          method: 'PUT',
+          db: name,
+          path: '_security',
+          body: security
+        }, function(err, body, hdrs) {
+          if (hdrs['status-code'] !== 200) {
+            throw(err);
+          }
+          if (callback) {
+            callback();
+          }
+        });
+
       });
     } else {
       if (callback) {
         callback();
       }
     }
-
   });
 }
+
+
+process.on('uncaughtException', function (err) {
+    console.log(err);
+});
+
 
 app.listen(config.node.port);
 console.log('Server running at http://' + config.node.host + ':' + config.node.port);
