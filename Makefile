@@ -14,8 +14,10 @@ NODE_PORT=6667
 all: cfg start_dev
 
 clean:
+	rm db
+	rm log
 	rm ./start-dev.sh
-	rm ./conf/couchtasks.client.ini
+	rm ./conf/couchtasks.ini
 	rm ./node-srv/config.js
 
 cfg: couch_cfg node_cfg
