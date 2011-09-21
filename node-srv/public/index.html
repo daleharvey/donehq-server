@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+
+    <meta charset="utf-8" />
+
+    <title>CouchTasks</title>
+    <style>
+html,
+body,
+fieldset,
+ul,
+h3 {
+    margin: 0px;
+    padding: 0px;
+}
+
+body {
+    overflow-x:hidden;
+    overflow-y:scroll;
+    background: none repeat scroll 0 0 #515151;
+}
+
+body,
+p,
+select,
+input,
+textarea {
+    font: 1em Helvetica, arial, sans-serif;
+}
+
+    </style>
+
+  </head>
+
+  <body>
+
+    <div id="user_panel">
+
+    </div>
+
+    <script type="text/html" id="logged_out_tpl">
+      <form action="#login">
+        <h2>Login</h2>
+        <label for="login_username">Username:</label>
+        <input type="text" name="username" /><br />
+        <label for="login_username">Password:</label>
+        <input type="password" name="password" /><br />
+        <input type="submit" value="Login" />
+      </form>
+
+      <form action="#register">
+        <h2>Register</h2>
+        <label for="register_username">Username:</label>
+        <input type="text" name="username" /><br />
+        <label for="login_username">Password:</label>
+        <input type="text" name="password" /><br />
+        <input type="submit" value="Register" />
+      </form>
+    </script>
+
+    <script type="text/html" id="logged_in_tpl">
+
+      Welcome <a href="/user/{{name}}/">{{name}}</a>
+
+      <form action="#logout">
+        <input type="submit" value="Logout" />
+      </form>
+
+    </script>
+
+    <script src="/js/jquery-1.6.min.js"></script>
+    <script src="/js/modernizr-1.7.min.js"></script>
+    <script src="/js/underscore.js"></script>
+
+    <script src="/js/jquery.noisy.min.js"></script>
+    <script src="/js/jquery.couch.js"></script>
+    <script src="/js/date.js"></script>
+    <script src="/js/router.js"></script>
+    <script src="/js/mustache.js"></script>
+
+    <script src="/js/utils.js"></script>
+    <script src="/js/tasks.js"></script>
+
+  </body>
+</html>
