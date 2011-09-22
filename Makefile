@@ -20,7 +20,7 @@ clean:
 	rm -f ./conf/couchtasks.ini
 	rm -f ./node-srv/config.js
 
-cfg: couch_cfg node_cfg
+cfg: couch_cfg node_cfg frontend_cfg
 
 start_dev:
 	sed -e "s|%SRC_DIR%|$(SRC_DIR)|g" \
@@ -33,6 +33,16 @@ start_dev:
 	    -e "s|%ADMIN_PASS%|$(ADMIN_PASS)|g" \
 	<./start_dev.sh.tpl >./start_dev.sh
 	chmod +x ./start_dev.sh
+
+frontend_cfg:
+	sed -e "s|%SRC_DIR%|$(SRC_DIR)|g" \
+	    -e "s|%COUCH_HOST%|$(COUCH_HOST)|g" \
+	    -e "s|%COUCH_PORT%|$(COUCH_PORT)|g" \
+	    -e "s|%NODE_HOST%|$(NODE_HOST)|g" \
+	    -e "s|%NODE_PORT%|$(NODE_PORT)|g" \
+	    -e "s|%ADMIN_NAME%|$(ADMIN_NAME)|g" \
+	    -e "s|%ADMIN_PASS%|$(ADMIN_PASS)|g" \
+	<./conf/conf.js.tpl >./couchtasks/_attachments/js/conf.js
 
 couch_cfg:
 	sed -e "s|%SRC_DIR%|$(SRC_DIR)|g" \
