@@ -17,5 +17,5 @@ file = %SRC_DIR%/log/couch.log
 [access_log]
 file = %SRC_DIR%/log/couch_access.log
 
-[admin]
+[admins]
 %ADMIN_NAME%=%ADMIN_PASS%
