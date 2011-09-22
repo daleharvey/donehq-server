@@ -1,9 +1,7 @@
 var config = require('./config');
 var http = require('http');
 var request = require('request');
-var express = require('express');
 var hashlib = require("hashlib");
-var httpProxy = require('http-proxy');
 var _ = require('underscore');
 
 var couchAuthUrl = 'http://' + config.couch.admin.name + ':' +
