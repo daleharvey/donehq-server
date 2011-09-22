@@ -62,7 +62,7 @@ var Tasks = (function () {
     }).then(function(data) {
       document.location = '/user/' + details.username + '/';
     }).fail(function(data) {
-      alert('Login Failed');
+      showWarning('#login_wrapper', "Error Logging in");
     });
   });
 
@@ -71,19 +71,28 @@ var Tasks = (function () {
 
     var credentials = {
       user: details.username,
-      password: details.password
+      password: details.password,
+      confirm_password: details.confirm_password,
+      init_ui: true,
     };
 
     $.ajax({
       type: 'POST',
       url: '/register',
-      data: JSON.stringify(credentials)
+      data: JSON.stringify(credentials),
     }).then(function(data) {
       document.location = '/user/' + details.username + '/';
     }).fail(function(data) {
-      alert('Registration Failed');
+      var obj = JSON.parse(data.responseText);
+      showWarning('#register_wrapper', obj.error);
     });
   });
+
+
+  function showWarning(id, msg) {
+    $(".warning").remove();
+    $(id).find('form').prepend('<p class="warning">' + msg + '</p>');
+  }
 
 
   function renderUserPanel() {

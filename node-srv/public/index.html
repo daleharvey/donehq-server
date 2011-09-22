@@ -5,58 +5,47 @@
     <meta charset="utf-8" />
 
     <title>CouchTasks</title>
-    <style>
-html,
-body,
-fieldset,
-ul,
-h3 {
-    margin: 0px;
-    padding: 0px;
-}
-
-body {
-    overflow-x:hidden;
-    overflow-y:scroll;
-    background: none repeat scroll 0 0 #515151;
-}
-
-body,
-p,
-select,
-input,
-textarea {
-    font: 1em Helvetica, arial, sans-serif;
-}
-
-    </style>
+    <link rel="stylesheet" href="/style/main.css">
 
   </head>
 
   <body>
+
+    <h1>CouchTasks (Beta)</h1>
 
     <div id="user_panel">
 
     </div>
 
     <script type="text/html" id="logged_out_tpl">
-      <form action="#login">
-        <h2>Login</h2>
-        <label for="login_username">Username:</label>
-        <input type="text" name="username" /><br />
-        <label for="login_username">Password:</label>
-        <input type="password" name="password" /><br />
-        <input type="submit" value="Login" />
-      </form>
 
-      <form action="#register">
+
+      <div id="login_wrapper">
+        <h2>Login</h2>
+        <form action="#login" id="login">
+          <label for="login_username">Username:</label>
+          <input type="text" name="username" />
+          <label for="login_username">Password:</label>
+          <input type="password" name="password" />
+          <input type="submit" value="Login" />
+        </form>
+      </div>
+
+      <div id="register_wrapper">
         <h2>Register</h2>
-        <label for="register_username">Username:</label>
-        <input type="text" name="username" /><br />
-        <label for="login_username">Password:</label>
-        <input type="text" name="password" /><br />
-        <input type="submit" value="Register" />
-      </form>
+        <form action="#register" id="register">
+          <label for="register_username">Username:</label>
+          <input type="text" name="username" />
+          <label for="login_username">Password:</label>
+          <input type="password" name="password" />
+          <label for="confirm_username">Confirm Password:</label>
+          <input type="password" name="confirm_password" />
+          <input type="submit" value="Register" />
+          <p class="subtext">Currently username and passwords can only
+            contain letters, numbera and _, They must be 3 to 20 characters long.</p>
+        </form>
+      </div>
+      <br style="clear:both" />
     </script>
 
     <script type="text/html" id="logged_in_tpl">
@@ -70,12 +59,8 @@ textarea {
     </script>
 
     <script src="/js/jquery-1.6.min.js"></script>
-    <script src="/js/modernizr-1.7.min.js"></script>
     <script src="/js/underscore.js"></script>
 
-    <script src="/js/jquery.noisy.min.js"></script>
-    <script src="/js/jquery.couch.js"></script>
-    <script src="/js/date.js"></script>
     <script src="/js/router.js"></script>
     <script src="/js/mustache.js"></script>
 

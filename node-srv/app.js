@@ -89,19 +89,18 @@ app.post('/register', function(req, client) {
     var name = post.user;
     var userName = 'org.couchdb.user:' + post.user;
 
-    users.get(userName, function(err, _, res) {
+    areValidCredentials(users, userName, post, function(areValid, reason) {
 
-      if (res['status-code'] === 200) {
-        reply(client, 409, {error: 'unknown'});
+      if (!areValid) {
+        reply(client, reason.status, reason.json);
 
-      } else if (res['status-code'] === 404) {
-
+      } else {
         createUserDoc(userName, name, post.password, function(user_doc) {
 
           users.insert(user_doc, function(err, body, hdrs) {
 
             if (err) {
-              reply(503, {error: 'unknown'});
+              reply(client, 503, {error: 'unknown'});
               return;
             }
 
@@ -123,6 +122,33 @@ app.post('/register', function(req, client) {
 app.get('*', function(req, res) {
   res.sendfile(__dirname + '/public' + req.params[0]);
 });
+
+
+function areValidCredentials(usersTable, id, post, callback) {
+
+  if (post.password !== post.confirm_password) {
+    callback(false, {status: 400, json: {error: 'Passwords do not match'}});
+
+  } else if (!/^[A-Za-z0-9_]{3,20}$/.test(post.user)) {
+    callback(false, {status: 400, json: {
+      error: 'Invalid username'
+    }});
+
+  } else if (!/^[A-Za-z0-9_]{3,20}$/.test(post.password)) {
+    callback(false, {status: 400, json: {
+      error: 'Invalid password'
+    }});
+
+  } else {
+    usersTable.get(id, function(err, _, res) {
+      if (res['status-code'] === 200) {
+        callback(false, {status: 409, json: {error: 'Username is in use'}});
+      } else {
+        callback(true);
+      }
+    });
+  }
+}
 
 
 function reply(client, status, content, hdrs) {
@@ -170,14 +196,14 @@ function fetchJSONBody(req, callback) {
 
 // Ensure the users database exists and has the correct
 // security credentials
-function createAccount(name, initUi, callback) {
+function createAccount(name, initUI, callback) {
 
   nano.db.create(name, function (error, body, headers) {
 
     if (headers['status-code'] === 201 ||
         headers['status-code'] === 412) {
 
-      nano.db.replicate('master', name, function() {
+      var doSecurity = function() {
 
         var security = {
           admins: { names: [name], roles: []},
@@ -198,7 +224,14 @@ function createAccount(name, initUi, callback) {
           }
         });
 
-      });
+      };
+
+      if (initUI === true) {
+        nano.db.replicate('master', name, doSecurity);
+      } else {
+        doSecurity();
+      }
+
     } else {
       if (callback) {
         callback();
@@ -206,11 +239,6 @@ function createAccount(name, initUi, callback) {
     }
   });
 }
-
-
-process.on('uncaughtException', function (err) {
-    console.log(err);
-});
 
 
 app.listen(config.node.port);
