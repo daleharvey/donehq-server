@@ -1,0 +1,3 @@
+[submodule "public/done"]
+	path = public/done
+	url = git@github.com:daleharvey/done.git
